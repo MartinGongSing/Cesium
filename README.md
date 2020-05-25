@@ -5,7 +5,7 @@ The "HelloGamepadV1.html" file should be in your \CESIUM\Apps directory
 
 Do not forget to download CesiumJS : https://cesium.com/cesiumjs/
 
-and to launch the server in the command prompt with the following : node server.cjs
+And to launch the server in the command prompt with the following : node server.cjs
 before launching this app.
 
 To make it work, follow the link given in your command prompt 
