@@ -1,0 +1,376 @@
+<!-- 
+    Inspired from 
+    https://sandcastle.cesium.com/?src=Camera%20Tutorial.html
+    https://github.com/tutsplus/Using-the-HTML5-Gamepad-API
+    https://developer.mozilla.org/en-US/docs/Web/API/Gamepad_API/Using_the_Gamepad_API 
+
+    Martin Gong Sing 
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <!-- Use correct character set. -->
+    <meta charset="utf-8">
+    <!-- Tell IE to use the latest, best version. -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <title>Hello Gamepad! V1.0</title>
+    <script src="../Build/Cesium/Cesium.js"></script>
+    <!-- //////////////// -->
+    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+    <!-- //////////////// -->
+    <style>
+        @import url(../Build/Cesium/Widgets/widgets.css);
+
+        html,
+        body,
+        #cesiumContainer {
+            width: 100%;
+            height: 95%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+    </style>
+
+</head>
+
+<body>
+    <div class="toolbar-left">
+        <button onclick="keyboardMotion('keyboarding');">Keyboard Motion</button>
+        <button onclick="mouseMotion();">Mouse Motion</button>
+        <button onclick="canGame2();">Gamepad Support Check</button>
+    </div>
+    <div id="gamepadPrompt"></div>
+    <div id="cesiumContainer"></div>
+
+    <script>
+         window.alert("Make sure to instert your Cesium ion Token (~line 53)");
+        // Cesium.Ion.defaultAccessToken = ''      // <--------- insert your Cesium Ion token here ///////////////////////////////////////////////////////////////////////////////////
+        var viewer = new Cesium.Viewer('cesiumContainer', {
+            vrButton: true,
+            terrainProvider: Cesium.createWorldTerrain()
+        });
+        var hasGP = false;
+        var repGP;
+
+        function canGame() {
+            return "getGamepads" in navigator; //verify your navigator supports the API
+        }
+
+        function canGame2() {
+            window.alert("Navigator supports Gamepad !");
+            console.log("Gamepading ok");
+            window.alert("if problems, verify values on \n https://html5gamepad.com/");
+            return "getGamepads" in navigator;
+        }
+
+
+
+
+        function mouseMotion() { // re-enables the default mouse motion
+            window.alert("This kinda works");
+
+            var scene = viewer.scene;
+
+            //default event handlers
+            scene.screenSpaceCameraController.enableRotate = true;
+            scene.screenSpaceCameraController.enableTranslate = true;
+            scene.screenSpaceCameraController.enableZoom = true;
+            scene.screenSpaceCameraController.enableTilt = true;
+            scene.screenSpaceCameraController.enableLook = true;
+
+            // flags.looking = false;       --> do smt like that to remove the mouse rotation due to keyboardmotion()
+
+        }
+
+        function keyboardMotion(chosing) { // might implement new functionalities -> chosing
+            if (chosing == 'keyboarding') { // to enter the keyboard control
+
+
+
+                var scene = viewer.scene;
+                var canvas = viewer.canvas;
+                canvas.setAttribute('tabindex', '0'); // needed to put focus on the canvas
+                canvas.onclick = function () {
+                    canvas.focus();
+                };
+                var ellipsoid = scene.globe.ellipsoid;
+
+                // disable the default event handlers
+                scene.screenSpaceCameraController.enableRotate = false;
+                scene.screenSpaceCameraController.enableTranslate = false;
+                scene.screenSpaceCameraController.enableZoom = false;
+                scene.screenSpaceCameraController.enableTilt = false;
+                scene.screenSpaceCameraController.enableLook = false;
+
+                var startMousePosition;
+                var mousePosition;
+                var flags = {
+                    looking: false,
+                    moveForward: false,
+                    moveBackward: false,
+                    moveUp: false,
+                    moveDown: false,
+                    moveLeft: false,
+                    moveRight: false
+                };
+
+                var handler = new Cesium.ScreenSpaceEventHandler(canvas);
+
+                // change the orientation of the camera with a left clic (mouse)
+
+                handler.setInputAction(function (movement) {
+                    flags.looking = true;
+                    mousePosition = startMousePosition = Cesium.Cartesian3.clone(movement.position);
+                }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
+
+                handler.setInputAction(function (movement) {
+                    mousePosition = movement.endPosition;
+                }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
+                handler.setInputAction(function (position) {
+                    flags.looking = false;
+                }, Cesium.ScreenSpaceEventType.LEFT_UP);
+
+                ////////////////
+
+                function getFlagForKeyCode(keyCode) { //might need to change character given the keyboard layout or make it with keyboard buttons
+                    switch (keyCode) {
+                        case 'Z'.charCodeAt(0):
+                            return 'moveForward';
+                        case 'S'.charCodeAt(0):
+                            return 'moveBackward';
+                        case 'A'.charCodeAt(0):
+                            return 'moveUp';
+                        case 'E'.charCodeAt(0):
+                            return 'moveDown';
+                        case 'D'.charCodeAt(0):
+                            return 'moveRight';
+                        case 'Q'.charCodeAt(0):
+                            return 'moveLeft';
+                        default:
+                            return undefined;
+                    }
+                }
+
+                document.addEventListener('keydown', function (e) {
+                    var flagName = getFlagForKeyCode(e.keyCode);
+                    if (typeof flagName !== 'undefined') {
+                        flags[flagName] = true;
+                    }
+                }, false);
+
+                document.addEventListener('keyup', function (e) {
+                    var flagName = getFlagForKeyCode(e.keyCode);
+                    if (typeof flagName !== 'undefined') {
+                        flags[flagName] = false;
+                    }
+                }, false);
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////////
+                // same script later, but need to take it out of the 'viewer.clock.onTick.addEventListener(function (clock)' to make it work correctly
+                // tells the user if the gamepad is connected
+
+                var prompt = "To begin using your gamepad, connect it and press any button!";
+                $("#gamepadPrompt").text(prompt);
+
+                $(window).on("gamepadconnected", function () {
+                    hasGP = true;
+                    $("#gamepadPrompt").html("Gamepad connected!");
+                });
+
+                $(window).on("gamepaddisconnected", function () {
+                    $("#gamepadPrompt").text(prompt);
+                    window.clearInterval(repGP);
+                });
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+                viewer.clock.onTick.addEventListener(function (clock) { // loop that checks changes in camera position and orientation
+                    var camera = viewer.camera;
+
+                    if (flags.looking) {
+                        var width = canvas.clientWidth;
+                        var height = canvas.clientHeight;
+
+                        // Coordinate (0.0, 0.0) will be where the mouse was clicked.
+                        var x = (mousePosition.x - startMousePosition.x) / width;
+                        var y = -(mousePosition.y - startMousePosition.y) / height;
+
+                        var lookFactor = 0.05;
+                        camera.lookRight(x * lookFactor);
+                        camera.lookUp(y * lookFactor);
+                    }
+
+                    // Change movement speed based on the distance of the camera to the surface of the ellipsoid.
+                    var cameraHeight = ellipsoid.cartesianToCartographic(camera.position).height;
+                    var moveRate = cameraHeight / 100.0;
+
+                    if (flags.moveForward) {
+                        camera.moveForward(moveRate);
+                    }
+                    if (flags.moveBackward) {
+                        camera.moveBackward(moveRate);
+                    }
+                    if (flags.moveUp) {
+                        camera.moveUp(moveRate);
+                    }
+                    if (flags.moveDown) {
+                        camera.moveDown(moveRate);
+                    }
+                    if (flags.moveLeft) {
+                        camera.moveLeft(moveRate);
+                    }
+                    if (flags.moveRight) {
+                        camera.moveRight(moveRate);
+                    }
+
+                    //gamepad support
+                    if (canGame()) {
+                        ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+                        // var prompt = "To begin using your gamepad, connect it and press any button!";
+                        // $("#gamepadPrompt").text(prompt);
+                        $(window).on("gamepadconnected", function () {
+                            hasGP = true;
+                            $("#gamepadPrompt").html("Gamepad connected!");
+                            repGP = window.setInterval(checkGamepad, 100); //[ms] - loop that checks the values on the gamepad
+                        });
+
+                        $(window).on("gamepaddisconnected", function () {
+                            $("#gamepadPrompt").text(prompt);
+                            window.clearInterval(repGP);
+                        });
+                        ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+                        // //setup an interval for Chrome
+                        // var checkGP = window.setInterval(function () {
+                        //     if (navigator.getGamepads()[0]) {
+                        //         if (!hasGP) $(window).trigger("gamepadconnected");
+                        //         window.clearInterval(checkGP);
+                        //     }
+                        // }, 500);
+
+
+
+                        window.addEventListener("gamepadconnected", function (e) {
+                            var gp = navigator.getGamepads()[e.gamepad.index];
+                            // uncomment 3 following lines for gamepad information displayed in console
+
+                            // console.log(
+                            //     "Gamepad connected at index %d: %s. %d buttons, %d axes.",
+                            //     gp.index, gp.id, gp.buttons.length, gp.axes.length
+                            // );
+
+                        });
+
+                        function checkGamepad() {
+                            var gp = navigator.getGamepads()[0];
+                            var lookFactor = 0.001; // Factor for camera orientation -> might implement an interactive feature in browser
+                            var moveFactor = 10; // Factor for camera movement speed -> might implement an interactive feature in broser
+
+                            //////////// buttons ////////////
+
+                            // if (gp.buttons[0].pressed) {
+                            //     console.log("button 1 pressed");
+                            //     //to define
+                            // }
+                            // if (gp.buttons[1].pressed) {
+                            //     console.log("button 2 pressed");
+                            //     //to define
+                            // }
+                            // if (gp.buttons[2].pressed) {
+                            //     console.log("button 3 pressed");
+                            //     //to define
+                            // }
+                            // if (gp.buttons[3].pressed) {
+                            //     console.log("button 4 pressed");
+                            //     //to define
+                            // }
+                            if (gp.buttons[4].pressed) {
+                                // console.log("button 5 pressed");
+                                camera.moveUp(moveRate / moveFactor); // moves the camera up
+                            }
+                            if (gp.buttons[5].pressed) {
+                                // console.log("button 6 pressed");
+                                camera.moveDown(moveRate / moveFactor); // moves the camera down
+                            }
+                            // if (gp.buttons[6].pressed) {
+                            //     console.log("button 7 pressed");
+                            //     //to define (timeline?)
+                            // }
+                            // if (gp.buttons[7].pressed) {
+                            //     console.log("button 8 pressed");
+                            //     //todefine (timeline?)
+                            // }
+                            // if (gp.buttons[9].pressed) {
+                            //     console.log("button 10 (start) pressed");
+                            //     //back to home view
+                            // }
+
+                            // To check the values to insert in [1-8], verify the values of the axis on the following link when at rest and leave a deadzone of +/- 0.5
+                            // https://html5gamepad.com/
+
+                            //////////// Joystick ////////////
+                            ////////////// Move //////////////
+
+                            if (gp.axes[0] > 1.5) {     // 1 -> axis 0
+                                // console.log("LA right");
+                                camera.moveRight(moveRate / moveFactor); // moves the camera rigth
+                            }
+                            if (gp.axes[0] < 0.5) {     //2 -> axis 0
+                                // console.log("LA left");
+                                camera.moveLeft(moveRate / moveFactor); // moves the camera left
+                            }
+                            if (gp.axes[1] > 1.5) {     //3 -> axis 1
+                                // console.log("LA down");
+                                camera.moveBackward(moveRate / moveFactor); // zoom out
+                            }
+                            if (gp.axes[1] < 0.5) {     //4 -> axis 1
+                                // console.log("LA up");
+                                camera.moveForward(moveRate / moveFactor); // zoom in
+                            }
+
+                            //////////// View //////////// 
+
+                            if (gp.axes[5] < 0.5) {     //5 -> axis 5
+                                // console.log("RA left");
+                                camera.lookRight(-1 * lookFactor); // rotates camera left
+                            }
+                            if (gp.axes[5] > 1.5) {     //6 -> axis 5
+                                // console.log("RA right");   
+                                camera.lookRight(lookFactor); // rotates camera right
+                            }
+                            if (gp.axes[6] < -0.5) {    //7 -> axis 6
+                                // console.log("RA up");    
+                                camera.lookUp(lookFactor); // rotates camera up
+                            }
+                            if (gp.axes[6] > 0.5) {     //8 -> axis 6
+                                // console.log("RA down");   
+                                camera.lookUp(-1 * lookFactor); // rotates camera down
+                            }
+
+                            //////////// default ////////////
+                            else { //does nothing
+                                // console.log("neutral")
+                            }
+                        }
+                    }
+                });
+            }
+            else {
+                // to be written ?
+                return
+            }
+        }
+
+    </script>
+</body>
+
+</html>
